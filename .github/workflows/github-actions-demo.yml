@@ -2,25 +2,40 @@ name: GitHub Actions Demo
 
 on:
   push:
-    branches: [main]
-    paths-ignore: [.github/**]
+    branches: [ main ]
+    paths-ignore:
+      - '.github/**'
   pull_request:
-    branches: [main]
+    branches: [ main ]
   schedule:
     - cron: '15 6 * * 0'
-  workflow_dispatch: 
-  
+  workflow_dispatch:
+
 jobs:
   Build:
     runs-on: ubuntu-latest
     steps:
-      - run: |
+      - name: Print triggering event
+        run: |
           echo "🎉 The job was triggered by event: ${{ github.event_name }}"
-          echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ."
+          # For pull_request events the branch name is in GITHUB_HEAD_REF.
+          # For push/schedule/workflow_dispatch it's in GITHUB_REF (refs/heads/<branch>).
+          if [ -n "${GITHUB_HEAD_REF}" ]; then
+            BRANCH="${GITHUB_HEAD_REF}"
+          else
+            BRANCH="${GITHUB_REF#refs/heads/}"
+          fi
+          echo "🔎 Branch: $BRANCH"
 
-      - uses: actions/checkout@v3.3.0
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
       - name: List files in the repository
         run: |
-          echo "The repository ${{ github.repository }} contains the following files:"
-          tree
+          echo "Repository ${{ github.repository }} contains:"
+          # Prefer `tree` if available for a nice view, otherwise fall back to find.
+          if command -v tree >/dev/null 2>&1; then
+            tree -a
+          else
+            find . -maxdepth 3 -type d -print -o -type f -print | sed 's|^\./||'
+          fi
